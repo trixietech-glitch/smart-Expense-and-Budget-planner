@@ -154,7 +154,7 @@ function Dashboard() {
         </div>
         <div className="mt-5">
           {tab === "ai" && <AiTextPanel logFn={logTextFn} onDone={afterLog} />}
-          {tab === "sms" && <SmsPanel logFn={logSmsFn} onDone={afterLog} />}
+          {tab === "sms" && <SmsPanel logFn={logSmsFn} batchFn={logSmsBatchFn} onDone={afterLog} />}
           {tab === "receipt" && <ReceiptPanel logFn={logReceiptFn} onDone={afterLog} />}
           {tab === "manual" && <ManualPanel logFn={createManualFn} onDone={afterLog} />}
         </div>
