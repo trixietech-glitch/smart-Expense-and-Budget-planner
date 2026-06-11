@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   logFromText,
   logFromSms,
+  logFromSmsBatch,
   logFromReceipt,
   createManual,
   deleteTransaction,
