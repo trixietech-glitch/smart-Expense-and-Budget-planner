@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   logFromText,
   logFromSms,
+  logFromSmsBatch,
   logFromReceipt,
   createManual,
   deleteTransaction,
@@ -62,6 +63,7 @@ function Dashboard() {
   const router = useRouter();
   const logTextFn = useServerFn(logFromText);
   const logSmsFn = useServerFn(logFromSms);
+  const logSmsBatchFn = useServerFn(logFromSmsBatch);
   const logReceiptFn = useServerFn(logFromReceipt);
   const createManualFn = useServerFn(createManual);
   const deleteFn = useServerFn(deleteTransaction);
@@ -152,7 +154,7 @@ function Dashboard() {
         </div>
         <div className="mt-5">
           {tab === "ai" && <AiTextPanel logFn={logTextFn} onDone={afterLog} />}
-          {tab === "sms" && <SmsPanel logFn={logSmsFn} onDone={afterLog} />}
+          {tab === "sms" && <SmsPanel logFn={logSmsFn} batchFn={logSmsBatchFn} onDone={afterLog} />}
           {tab === "receipt" && <ReceiptPanel logFn={logReceiptFn} onDone={afterLog} />}
           {tab === "manual" && <ManualPanel logFn={createManualFn} onDone={afterLog} />}
         </div>
@@ -289,26 +291,50 @@ function AiTextPanel({
 
 function SmsPanel({
   logFn,
+  batchFn,
   onDone,
 }: {
   logFn: (a: { data: { sms: string } }) => Promise<unknown>;
+  batchFn: (a: { data: { text: string } }) => Promise<{ inserted: number; failed: number; total: number }>;
   onDone: () => void;
 }) {
   const [sms, setSms] = useState("");
   const [sending, setSending] = useState(false);
   const examples = [
     "TGH4X5Y2 Confirmed. Ksh450.00 paid to UBER KENYA on 11/6/26 at 1:24 PM. New M-PESA balance is Ksh3,210.55.",
-    "Your A/C XXXX1234 has been debited KES 5,000.00 on 11-Jun-26 via card payment at NAIVAS WESTLANDS. Avail bal KES 12,330.00. KCB",
-    "Salary credit of KES 45,000.00 received in A/C XXXX9876 on 30-May-26. Equity Bank.",
+    "RJK2X9P0 Confirmed. You have received Ksh2,500.00 from JANE DOE 0712345678 on 10/6/26 at 9:14 AM. New M-PESA balance is Ksh5,710.55.",
+    "You have paid Ksh 1,500 to NAIVAS WESTLANDS on 09/06/26. Airtel Money balance: Ksh 3,420.",
   ];
+  // Detect multiple SMS messages — split on blank lines or M-Pesa-style "XXX Confirmed" line starts.
+  const detectedCount = (() => {
+    const t = sms.trim();
+    if (!t) return 0;
+    const byBlank = t.split(/\n\s*\n+/).filter((x) => x.trim()).length;
+    if (byBlank > 1) return byBlank;
+    const matches = t.match(/(^|\n)\s*(?:[A-Z0-9]{8,12}\s+Confirmed\b|You have\s+(?:paid|sent|received))/gi);
+    return matches ? Math.max(matches.length, 1) : 1;
+  })();
+  const isBatch = detectedCount > 1;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!sms.trim() || sending) return;
+    const text = sms.trim();
+    if (!text || sending) return;
     setSending(true);
     try {
-      await logFn({ data: { sms: sms.trim() } });
-      setSms("");
-      toast.success("SMS parsed and logged");
+      if (isBatch) {
+        const res = await batchFn({ data: { text } });
+        setSms("");
+        if (res.failed > 0) {
+          toast.success(`Logged ${res.inserted} of ${res.total} (${res.failed} couldn't be parsed)`);
+        } else {
+          toast.success(`Logged ${res.inserted} transactions`);
+        }
+      } else {
+        await logFn({ data: { sms: text } });
+        setSms("");
+        toast.success("SMS parsed and logged");
+      }
       onDone();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't parse SMS");
@@ -320,25 +346,30 @@ function SmsPanel({
     <div>
       <div className="flex items-center gap-2 text-sm font-medium">
         <MessageSquareText className="h-4 w-4 text-primary" />
-        Paste an M-Pesa or bank SMS — AI detects amount, merchant, and category
+        Paste M-Pesa, Airtel Money, or bank SMS — paste several at once and we'll parse them all
       </div>
       <form onSubmit={submit} className="mt-3 space-y-2">
         <textarea
           value={sms}
           onChange={(e) => setSms(e.target.value)}
-          placeholder="Paste the full SMS here…"
-          rows={4}
+          placeholder="Paste one or more SMS messages here. Separate multiple with a blank line."
+          rows={6}
           className="w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
           disabled={sending}
         />
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-muted-foreground">
+            {detectedCount > 0
+              ? `${detectedCount} message${detectedCount === 1 ? "" : "s"} detected · M-Pesa & Airtel parsed instantly, others via AI`
+              : "M-Pesa & Airtel parsed instantly, others via AI"}
+          </div>
           <button
             type="submit"
             disabled={sending || !sms.trim()}
             className="flex items-center gap-2 rounded-xl bg-gradient-hero px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-60"
           >
             <Send className="h-4 w-4" />
-            {sending ? "Parsing…" : "Parse & log"}
+            {sending ? (isBatch ? "Parsing all…" : "Parsing…") : isBatch ? `Parse & log ${detectedCount}` : "Parse & log"}
           </button>
         </div>
       </form>
@@ -347,11 +378,11 @@ function SmsPanel({
           <button
             key={i}
             type="button"
-            onClick={() => setSms(ex)}
+            onClick={() => setSms((s) => (s ? `${s}\n\n${ex}` : ex))}
             className="max-w-full truncate rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
             title={ex}
           >
-            Example {i + 1}
+            + Example {i + 1}
           </button>
         ))}
       </div>

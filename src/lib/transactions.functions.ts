@@ -49,6 +49,124 @@ function getGateway() {
   return createLovableAiGatewayProvider(key);
 }
 
+// ---------------- Deterministic M-Pesa / Airtel Money parser ----------------
+type LocalParsed = {
+  type: "expense" | "income" | "savings" | "loan" | "transfer";
+  amount: number;
+  currency: string;
+  category: string;
+  merchant: string;
+  description: string;
+  bank: string;
+};
+
+function categorize(merchant: string, fallback: string): string {
+  const m = merchant.toLowerCase();
+  if (/(uber|bolt|little cab|matatu|fare|shell|total|rubis|petrol|fuel|ola energy)/.test(m)) return "Transport";
+  if (/(kplc|kenya power|nairobi water|zuku|safaricom home|faiba|jtl|telkom)/.test(m)) return "Bills & Utilities";
+  if (/(naivas|carrefour|quickmart|chandarana|tuskys|magunas|cleanshelf|game stores)/.test(m)) return "Groceries";
+  if (/(java|kfc|pizza|burger|cafe|coffee|chicken inn|galitos|big square|artcaffe|naked pizza|ocha|nyama)/.test(m)) return "Food & Drink";
+  if (/(netflix|dstv|showmax|spotify|gotv|startimes)/.test(m)) return "Entertainment";
+  if (/(school|university|college|academy|fees)/.test(m)) return "School Fees";
+  if (/(hospital|clinic|pharmacy|chemist|goodlife|medplus|aga khan|nairobi hospital|mp shah)/.test(m)) return "Health";
+  if (/(airtime|bundles|data|safaricom prepay|okoa jahazi)/.test(m)) return "Airtime & Data";
+  return fallback;
+}
+
+function parseAmount(raw: string): number | null {
+  const m = raw.match(/(?:Ksh|KES|Ksh\.|KSh)\s*([\d,]+(?:\.\d{1,2})?)/i);
+  if (!m) return null;
+  const n = Number(m[1].replace(/,/g, ""));
+  return isFinite(n) && n > 0 ? n : null;
+}
+
+export function localParseSms(sms: string): LocalParsed | null {
+  const s = sms.trim();
+  if (!s) return null;
+
+  const isMpesa = /m-?pesa/i.test(s) || /^[A-Z0-9]{8,12}\s+Confirmed\b/i.test(s) || /Fuliza/i.test(s);
+  if (isMpesa) {
+    const amount = parseAmount(s);
+    if (!amount) return null;
+    const bank = "M-Pesa";
+
+    let m = s.match(/received\s+(?:Ksh|KES)\s*[\d,.]+\s+from\s+([A-Z0-9 .'&\-]+?)\s+(?:\d{7,12}|on\s)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "income", amount, currency: "KES", category: "Other Income", merchant, description: `Received from ${merchant}`, bank };
+    }
+    m = s.match(/paid\s+to\s+([A-Z0-9 .'&\-]+?)(?:\s+(?:on|for|acc|account)\b|\.)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "expense", amount, currency: "KES", category: categorize(merchant, "Shopping"), merchant, description: `Paid ${merchant}`, bank };
+    }
+    m = s.match(/sent\s+to\s+([A-Z0-9 .'&\-]+?)\s+(?:\d{7,12}|on\s)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "expense", amount, currency: "KES", category: "Other", merchant, description: `Sent to ${merchant}`, bank };
+    }
+    if (/withdraw/i.test(s)) {
+      const agent = s.match(/from\s+([A-Z0-9 .'&\-]+?)(?:\s+New|\.)/i);
+      return { type: "expense", amount, currency: "KES", category: "Other", merchant: agent?.[1].trim() || "M-Pesa agent", description: "Withdrawal", bank };
+    }
+    if (/airtime/i.test(s)) {
+      return { type: "expense", amount, currency: "KES", category: "Airtime & Data", merchant: "Safaricom", description: "Airtime purchase", bank };
+    }
+    if (/Fuliza/i.test(s) && /(repaid|outstanding|deducted)/i.test(s)) {
+      return { type: "loan", amount, currency: "KES", category: "Loan", merchant: "Fuliza", description: "Fuliza repayment", bank };
+    }
+    return null;
+  }
+
+  const isAirtel = /airtel\s*money/i.test(s) || /^You have (paid|sent|received)\b/i.test(s);
+  if (isAirtel) {
+    const amount = parseAmount(s);
+    if (!amount) return null;
+    const bank = "Airtel Money";
+
+    let m = s.match(/(?:You have\s+)?paid\s+(?:Ksh|KES)\s*[\d,.]+\s+to\s+([A-Z0-9 .'&\-]+?)(?:\s+on|\.|,)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "expense", amount, currency: "KES", category: categorize(merchant, "Shopping"), merchant, description: `Paid ${merchant}`, bank };
+    }
+    m = s.match(/(?:You have\s+)?sent\s+(?:Ksh|KES)\s*[\d,.]+\s+to\s+([A-Z0-9 .'&\-]+?)(?:\s+on|\.|,)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "expense", amount, currency: "KES", category: "Other", merchant, description: `Sent to ${merchant}`, bank };
+    }
+    m = s.match(/(?:You have\s+)?received\s+(?:Ksh|KES)\s*[\d,.]+\s+from\s+([A-Z0-9 .'&\-]+?)(?:\s+on|\.|,)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "income", amount, currency: "KES", category: "Other Income", merchant, description: `Received from ${merchant}`, bank };
+    }
+    if (/airtime|bundle|data/i.test(s)) {
+      return { type: "expense", amount, currency: "KES", category: "Airtime & Data", merchant: "Airtel", description: "Airtime/data", bank };
+    }
+    return null;
+  }
+
+  return null;
+}
+
+function splitSmsBatch(input: string): string[] {
+  const byBlank = input.split(/\n\s*\n+/).map((s) => s.trim()).filter(Boolean);
+  if (byBlank.length > 1) return byBlank;
+  const lines = input.split(/\n/).map((s) => s.trim()).filter(Boolean);
+  if (lines.length <= 1) return [input.trim()].filter(Boolean);
+  const chunks: string[] = [];
+  let cur = "";
+  for (const line of lines) {
+    if (/^[A-Z0-9]{8,12}\s+Confirmed\b/i.test(line) || /^You have\s+(paid|sent|received)/i.test(line)) {
+      if (cur) chunks.push(cur.trim());
+      cur = line;
+    } else {
+      cur = cur ? `${cur} ${line}` : line;
+    }
+  }
+  if (cur) chunks.push(cur.trim());
+  return chunks;
+}
+
 // ---------------- AI text logger ----------------
 const ParsedText = z.object({
   type: z.enum(TX_TYPES),
@@ -107,24 +225,30 @@ const ParsedSms = z.object({
   bank: z.string().optional().default(""),
 });
 
+async function parseSmsWithAi(sms: string) {
+  const gateway = getGateway();
+  const { experimental_output } = await generateText({
+    model: gateway("google/gemini-3-flash-preview"),
+    system:
+      "You parse Kenyan financial SMS alerts (M-Pesa, Airtel Money, KCB, Equity, Co-op, Absa, NCBA, Standard Chartered, etc.) into structured data. " +
+      "Determine transaction type: 'expense' for payments/withdrawals/debits/card payments, 'income' for received/credit/salary/deposits, 'savings' for lock savings/MMF deposit, 'loan' for Fuliza/loan disbursement/repayment, 'transfer' for own-account moves. " +
+      "Extract the numeric amount (strip commas), the merchant or sender if any, the bank/wallet name, and a short description. Auto-categorize: Uber/Bolt/matatu/fuel → Transport, KPLC/water/internet/Zuku/Safaricom Home → Bills & Utilities, supermarkets (Naivas/Carrefour/Quickmart) → Groceries, restaurants/Java/KFC → Food & Drink, Netflix/DStv → Entertainment, school/university → School Fees, hospital/pharmacy → Health, salary → Salary.\n" +
+      CATEGORY_HINTS,
+    prompt: `Parse this SMS:\n"""${sms}"""`,
+    experimental_output: Output.object({ schema: ParsedSms }),
+  });
+  return experimental_output;
+}
+
 export const logFromSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z.object({ sms: z.string().min(5).max(2000) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const gateway = getGateway();
-    const { experimental_output } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
-      system:
-        "You parse Kenyan financial SMS alerts (M-Pesa, Airtel Money, KCB, Equity, Co-op, Absa, NCBA, Standard Chartered, etc.) into structured data. " +
-        "Determine transaction type: 'expense' for payments/withdrawals/debits/card payments, 'income' for received/credit/salary/deposits, 'savings' for lock savings/MMF deposit, 'loan' for Fuliza/loan disbursement/repayment, 'transfer' for own-account moves. " +
-        "Extract the numeric amount (strip commas), the merchant or sender if any, the bank/wallet name, and a short description. Auto-categorize: Uber/Bolt/matatu/fuel → Transport, KPLC/water/internet/Zuku/Safaricom Home → Bills & Utilities, supermarkets (Naivas/Carrefour/Quickmart) → Groceries, restaurants/Java/KFC → Food & Drink, Netflix/DStv → Entertainment, school/university → School Fees, hospital/pharmacy → Health, salary → Salary.\n" +
-        CATEGORY_HINTS,
-      prompt: `Parse this SMS:\n"""${data.sms}"""`,
-      experimental_output: Output.object({ schema: ParsedSms }),
-    });
-    const p = experimental_output;
+    // Try deterministic Kenyan-wallet parser first; fall back to AI.
+    const local = localParseSms(data.sms);
+    const p = local ?? (await parseSmsWithAi(data.sms));
 
     const { data: row, error } = await context.supabase
       .from("transactions")
@@ -138,13 +262,70 @@ export const logFromSms = createServerFn({ method: "POST" })
         description: p.description,
         raw_text: data.sms,
         source: "sms",
-        metadata: { bank: p.bank || null },
+        metadata: { bank: p.bank || null, parser: local ? "regex" : "ai" },
       })
       .select()
       .single();
     if (error) throw new Error(error.message);
     return row;
   });
+
+// ---------------- Batch SMS (paste multiple at once) ----------------
+export const logFromSmsBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ text: z.string().min(5).max(20000) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const chunks = splitSmsBatch(data.text);
+    type TxInsert = {
+      user_id: string;
+      type: LocalParsed["type"];
+      amount: number;
+      currency: string;
+      category: string;
+      merchant: string | null;
+      description: string;
+      raw_text: string;
+      source: string;
+      metadata: Record<string, unknown>;
+    };
+    const inserts: TxInsert[] = [];
+    const failures: Array<{ sms: string; error: string }> = [];
+
+    for (const sms of chunks) {
+      try {
+        const local = localParseSms(sms);
+        const p = local ?? (await parseSmsWithAi(sms));
+        inserts.push({
+          user_id: context.userId,
+          type: p.type,
+          amount: p.amount,
+          currency: p.currency || "KES",
+          category: p.category,
+          merchant: p.merchant || null,
+          description: p.description,
+          raw_text: sms,
+          source: "sms",
+          metadata: { bank: p.bank || null, parser: local ? "regex" : "ai" },
+        });
+      } catch (err) {
+        failures.push({ sms, error: err instanceof Error ? err.message : "parse failed" });
+      }
+    }
+
+    let inserted = 0;
+    if (inserts.length) {
+      const { data: rows, error } = await context.supabase
+        .from("transactions")
+        .insert(inserts as never)
+        .select("id");
+      if (error) throw new Error(error.message);
+      inserted = rows?.length ?? 0;
+    }
+    return { inserted, failed: failures.length, total: chunks.length, failures };
+  });
+
 
 // ---------------- Receipt scanner ----------------
 const ParsedReceipt = z.object({
