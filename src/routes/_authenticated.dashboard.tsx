@@ -63,6 +63,7 @@ function Dashboard() {
   const router = useRouter();
   const logTextFn = useServerFn(logFromText);
   const logSmsFn = useServerFn(logFromSms);
+  const logSmsBatchFn = useServerFn(logFromSmsBatch);
   const logReceiptFn = useServerFn(logFromReceipt);
   const createManualFn = useServerFn(createManual);
   const deleteFn = useServerFn(deleteTransaction);
