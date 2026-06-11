@@ -278,7 +278,19 @@ export const logFromSmsBatch = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const chunks = splitSmsBatch(data.text);
-    const inserts: Array<Record<string, unknown>> = [];
+    type TxInsert = {
+      user_id: string;
+      type: LocalParsed["type"];
+      amount: number;
+      currency: string;
+      category: string;
+      merchant: string | null;
+      description: string;
+      raw_text: string;
+      source: string;
+      metadata: Record<string, unknown>;
+    };
+    const inserts: TxInsert[] = [];
     const failures: Array<{ sms: string; error: string }> = [];
 
     for (const sms of chunks) {
