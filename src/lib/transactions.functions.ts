@@ -318,7 +318,7 @@ export const logFromSmsBatch = createServerFn({ method: "POST" })
     if (inserts.length) {
       const { data: rows, error } = await context.supabase
         .from("transactions")
-        .insert(inserts)
+        .insert(inserts as never)
         .select("id");
       if (error) throw new Error(error.message);
       inserted = rows?.length ?? 0;
