@@ -49,6 +49,124 @@ function getGateway() {
   return createLovableAiGatewayProvider(key);
 }
 
+// ---------------- Deterministic M-Pesa / Airtel Money parser ----------------
+type LocalParsed = {
+  type: "expense" | "income" | "savings" | "loan" | "transfer";
+  amount: number;
+  currency: string;
+  category: string;
+  merchant: string;
+  description: string;
+  bank: string;
+};
+
+function categorize(merchant: string, fallback: string): string {
+  const m = merchant.toLowerCase();
+  if (/(uber|bolt|little cab|matatu|fare|shell|total|rubis|petrol|fuel|ola energy)/.test(m)) return "Transport";
+  if (/(kplc|kenya power|nairobi water|zuku|safaricom home|faiba|jtl|telkom)/.test(m)) return "Bills & Utilities";
+  if (/(naivas|carrefour|quickmart|chandarana|tuskys|magunas|cleanshelf|game stores)/.test(m)) return "Groceries";
+  if (/(java|kfc|pizza|burger|cafe|coffee|chicken inn|galitos|big square|artcaffe|naked pizza|ocha|nyama)/.test(m)) return "Food & Drink";
+  if (/(netflix|dstv|showmax|spotify|gotv|startimes)/.test(m)) return "Entertainment";
+  if (/(school|university|college|academy|fees)/.test(m)) return "School Fees";
+  if (/(hospital|clinic|pharmacy|chemist|goodlife|medplus|aga khan|nairobi hospital|mp shah)/.test(m)) return "Health";
+  if (/(airtime|bundles|data|safaricom prepay|okoa jahazi)/.test(m)) return "Airtime & Data";
+  return fallback;
+}
+
+function parseAmount(raw: string): number | null {
+  const m = raw.match(/(?:Ksh|KES|Ksh\.|KSh)\s*([\d,]+(?:\.\d{1,2})?)/i);
+  if (!m) return null;
+  const n = Number(m[1].replace(/,/g, ""));
+  return isFinite(n) && n > 0 ? n : null;
+}
+
+export function localParseSms(sms: string): LocalParsed | null {
+  const s = sms.trim();
+  if (!s) return null;
+
+  const isMpesa = /m-?pesa/i.test(s) || /^[A-Z0-9]{8,12}\s+Confirmed\b/i.test(s) || /Fuliza/i.test(s);
+  if (isMpesa) {
+    const amount = parseAmount(s);
+    if (!amount) return null;
+    const bank = "M-Pesa";
+
+    let m = s.match(/received\s+(?:Ksh|KES)\s*[\d,.]+\s+from\s+([A-Z0-9 .'&\-]+?)\s+(?:\d{7,12}|on\s)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "income", amount, currency: "KES", category: "Other Income", merchant, description: `Received from ${merchant}`, bank };
+    }
+    m = s.match(/paid\s+to\s+([A-Z0-9 .'&\-]+?)(?:\s+(?:on|for|acc|account)\b|\.)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "expense", amount, currency: "KES", category: categorize(merchant, "Shopping"), merchant, description: `Paid ${merchant}`, bank };
+    }
+    m = s.match(/sent\s+to\s+([A-Z0-9 .'&\-]+?)\s+(?:\d{7,12}|on\s)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "expense", amount, currency: "KES", category: "Other", merchant, description: `Sent to ${merchant}`, bank };
+    }
+    if (/withdraw/i.test(s)) {
+      const agent = s.match(/from\s+([A-Z0-9 .'&\-]+?)(?:\s+New|\.)/i);
+      return { type: "expense", amount, currency: "KES", category: "Other", merchant: agent?.[1].trim() || "M-Pesa agent", description: "Withdrawal", bank };
+    }
+    if (/airtime/i.test(s)) {
+      return { type: "expense", amount, currency: "KES", category: "Airtime & Data", merchant: "Safaricom", description: "Airtime purchase", bank };
+    }
+    if (/Fuliza/i.test(s) && /(repaid|outstanding|deducted)/i.test(s)) {
+      return { type: "loan", amount, currency: "KES", category: "Loan", merchant: "Fuliza", description: "Fuliza repayment", bank };
+    }
+    return null;
+  }
+
+  const isAirtel = /airtel\s*money/i.test(s) || /^You have (paid|sent|received)\b/i.test(s);
+  if (isAirtel) {
+    const amount = parseAmount(s);
+    if (!amount) return null;
+    const bank = "Airtel Money";
+
+    let m = s.match(/(?:You have\s+)?paid\s+(?:Ksh|KES)\s*[\d,.]+\s+to\s+([A-Z0-9 .'&\-]+?)(?:\s+on|\.|,)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "expense", amount, currency: "KES", category: categorize(merchant, "Shopping"), merchant, description: `Paid ${merchant}`, bank };
+    }
+    m = s.match(/(?:You have\s+)?sent\s+(?:Ksh|KES)\s*[\d,.]+\s+to\s+([A-Z0-9 .'&\-]+?)(?:\s+on|\.|,)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "expense", amount, currency: "KES", category: "Other", merchant, description: `Sent to ${merchant}`, bank };
+    }
+    m = s.match(/(?:You have\s+)?received\s+(?:Ksh|KES)\s*[\d,.]+\s+from\s+([A-Z0-9 .'&\-]+?)(?:\s+on|\.|,)/i);
+    if (m) {
+      const merchant = m[1].trim();
+      return { type: "income", amount, currency: "KES", category: "Other Income", merchant, description: `Received from ${merchant}`, bank };
+    }
+    if (/airtime|bundle|data/i.test(s)) {
+      return { type: "expense", amount, currency: "KES", category: "Airtime & Data", merchant: "Airtel", description: "Airtime/data", bank };
+    }
+    return null;
+  }
+
+  return null;
+}
+
+function splitSmsBatch(input: string): string[] {
+  const byBlank = input.split(/\n\s*\n+/).map((s) => s.trim()).filter(Boolean);
+  if (byBlank.length > 1) return byBlank;
+  const lines = input.split(/\n/).map((s) => s.trim()).filter(Boolean);
+  if (lines.length <= 1) return [input.trim()].filter(Boolean);
+  const chunks: string[] = [];
+  let cur = "";
+  for (const line of lines) {
+    if (/^[A-Z0-9]{8,12}\s+Confirmed\b/i.test(line) || /^You have\s+(paid|sent|received)/i.test(line)) {
+      if (cur) chunks.push(cur.trim());
+      cur = line;
+    } else {
+      cur = cur ? `${cur} ${line}` : line;
+    }
+  }
+  if (cur) chunks.push(cur.trim());
+  return chunks;
+}
+
 // ---------------- AI text logger ----------------
 const ParsedText = z.object({
   type: z.enum(TX_TYPES),
