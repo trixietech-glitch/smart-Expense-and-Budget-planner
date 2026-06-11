@@ -225,24 +225,30 @@ const ParsedSms = z.object({
   bank: z.string().optional().default(""),
 });
 
+async function parseSmsWithAi(sms: string) {
+  const gateway = getGateway();
+  const { experimental_output } = await generateText({
+    model: gateway("google/gemini-3-flash-preview"),
+    system:
+      "You parse Kenyan financial SMS alerts (M-Pesa, Airtel Money, KCB, Equity, Co-op, Absa, NCBA, Standard Chartered, etc.) into structured data. " +
+      "Determine transaction type: 'expense' for payments/withdrawals/debits/card payments, 'income' for received/credit/salary/deposits, 'savings' for lock savings/MMF deposit, 'loan' for Fuliza/loan disbursement/repayment, 'transfer' for own-account moves. " +
+      "Extract the numeric amount (strip commas), the merchant or sender if any, the bank/wallet name, and a short description. Auto-categorize: Uber/Bolt/matatu/fuel → Transport, KPLC/water/internet/Zuku/Safaricom Home → Bills & Utilities, supermarkets (Naivas/Carrefour/Quickmart) → Groceries, restaurants/Java/KFC → Food & Drink, Netflix/DStv → Entertainment, school/university → School Fees, hospital/pharmacy → Health, salary → Salary.\n" +
+      CATEGORY_HINTS,
+    prompt: `Parse this SMS:\n"""${sms}"""`,
+    experimental_output: Output.object({ schema: ParsedSms }),
+  });
+  return experimental_output;
+}
+
 export const logFromSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z.object({ sms: z.string().min(5).max(2000) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const gateway = getGateway();
-    const { experimental_output } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
-      system:
-        "You parse Kenyan financial SMS alerts (M-Pesa, Airtel Money, KCB, Equity, Co-op, Absa, NCBA, Standard Chartered, etc.) into structured data. " +
-        "Determine transaction type: 'expense' for payments/withdrawals/debits/card payments, 'income' for received/credit/salary/deposits, 'savings' for lock savings/MMF deposit, 'loan' for Fuliza/loan disbursement/repayment, 'transfer' for own-account moves. " +
-        "Extract the numeric amount (strip commas), the merchant or sender if any, the bank/wallet name, and a short description. Auto-categorize: Uber/Bolt/matatu/fuel → Transport, KPLC/water/internet/Zuku/Safaricom Home → Bills & Utilities, supermarkets (Naivas/Carrefour/Quickmart) → Groceries, restaurants/Java/KFC → Food & Drink, Netflix/DStv → Entertainment, school/university → School Fees, hospital/pharmacy → Health, salary → Salary.\n" +
-        CATEGORY_HINTS,
-      prompt: `Parse this SMS:\n"""${data.sms}"""`,
-      experimental_output: Output.object({ schema: ParsedSms }),
-    });
-    const p = experimental_output;
+    // Try deterministic Kenyan-wallet parser first; fall back to AI.
+    const local = localParseSms(data.sms);
+    const p = local ?? (await parseSmsWithAi(data.sms));
 
     const { data: row, error } = await context.supabase
       .from("transactions")
@@ -256,13 +262,58 @@ export const logFromSms = createServerFn({ method: "POST" })
         description: p.description,
         raw_text: data.sms,
         source: "sms",
-        metadata: { bank: p.bank || null },
+        metadata: { bank: p.bank || null, parser: local ? "regex" : "ai" },
       })
       .select()
       .single();
     if (error) throw new Error(error.message);
     return row;
   });
+
+// ---------------- Batch SMS (paste multiple at once) ----------------
+export const logFromSmsBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ text: z.string().min(5).max(20000) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const chunks = splitSmsBatch(data.text);
+    const inserts: Array<Record<string, unknown>> = [];
+    const failures: Array<{ sms: string; error: string }> = [];
+
+    for (const sms of chunks) {
+      try {
+        const local = localParseSms(sms);
+        const p = local ?? (await parseSmsWithAi(sms));
+        inserts.push({
+          user_id: context.userId,
+          type: p.type,
+          amount: p.amount,
+          currency: p.currency || "KES",
+          category: p.category,
+          merchant: p.merchant || null,
+          description: p.description,
+          raw_text: sms,
+          source: "sms",
+          metadata: { bank: p.bank || null, parser: local ? "regex" : "ai" },
+        });
+      } catch (err) {
+        failures.push({ sms, error: err instanceof Error ? err.message : "parse failed" });
+      }
+    }
+
+    let inserted = 0;
+    if (inserts.length) {
+      const { data: rows, error } = await context.supabase
+        .from("transactions")
+        .insert(inserts)
+        .select("id");
+      if (error) throw new Error(error.message);
+      inserted = rows?.length ?? 0;
+    }
+    return { inserted, failed: failures.length, total: chunks.length, failures };
+  });
+
 
 // ---------------- Receipt scanner ----------------
 const ParsedReceipt = z.object({
