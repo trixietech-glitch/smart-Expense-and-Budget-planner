@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, BarChart3, LogOut } from "lucide-react";
+import { LayoutDashboard, BarChart3, LogOut, Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthGate,
@@ -46,6 +46,7 @@ function AuthGate() {
           </Link>
           <nav className="flex items-center gap-1 rounded-full border bg-card p-1 text-sm">
             <NavTab to="/dashboard" current={path} icon={LayoutDashboard} label="Dashboard" />
+            <NavTab to="/budgets" current={path} icon={Wallet} label="Budgets" />
             <NavTab to="/analytics" current={path} icon={BarChart3} label="Analytics" />
           </nav>
           <div className="flex items-center gap-3">
@@ -74,7 +75,7 @@ function NavTab({
   icon: Icon,
   label,
 }: {
-  to: "/dashboard" | "/analytics";
+  to: "/dashboard" | "/analytics" | "/budgets";
   current: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
