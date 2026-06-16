@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, BarChart3, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, BarChart3, LogOut, Wallet, Target, Landmark, Repeat } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthGate,
@@ -44,9 +44,12 @@ function AuthGate() {
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-hero text-primary-foreground">P</span>
             PesaHub
           </Link>
-          <nav className="flex items-center gap-1 rounded-full border bg-card p-1 text-sm">
+          <nav className="flex items-center gap-1 overflow-x-auto rounded-full border bg-card p-1 text-sm">
             <NavTab to="/dashboard" current={path} icon={LayoutDashboard} label="Dashboard" />
             <NavTab to="/budgets" current={path} icon={Wallet} label="Budgets" />
+            <NavTab to="/goals" current={path} icon={Target} label="Goals" />
+            <NavTab to="/debts" current={path} icon={Landmark} label="Debts" />
+            <NavTab to="/subscriptions" current={path} icon={Repeat} label="Subs" />
             <NavTab to="/analytics" current={path} icon={BarChart3} label="Analytics" />
           </nav>
           <div className="flex items-center gap-3">
@@ -75,7 +78,7 @@ function NavTab({
   icon: Icon,
   label,
 }: {
-  to: "/dashboard" | "/analytics" | "/budgets";
+  to: "/dashboard" | "/analytics" | "/budgets" | "/goals" | "/debts" | "/subscriptions";
   current: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;

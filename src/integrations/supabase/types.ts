@@ -44,6 +44,54 @@ export type Database = {
         }
         Relationships: []
       }
+      debts: {
+        Row: {
+          balance: number
+          created_at: string
+          currency: string
+          due_day: number | null
+          id: string
+          interest_rate: number
+          lender: string | null
+          minimum_payment: number
+          name: string
+          principal: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance: number
+          created_at?: string
+          currency?: string
+          due_day?: number | null
+          id?: string
+          interest_rate?: number
+          lender?: string | null
+          minimum_payment?: number
+          name: string
+          principal: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          currency?: string
+          due_day?: number | null
+          id?: string
+          interest_rate?: number
+          lender?: string | null
+          minimum_payment?: number
+          name?: string
+          principal?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -59,6 +107,87 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+        }
+        Relationships: []
+      }
+      savings_goals: {
+        Row: {
+          category: string | null
+          created_at: string
+          currency: string
+          current_amount: number
+          id: string
+          name: string
+          target_amount: number
+          target_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          currency?: string
+          current_amount?: number
+          id?: string
+          name: string
+          target_amount: number
+          target_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          currency?: string
+          current_amount?: number
+          id?: string
+          name?: string
+          target_amount?: number
+          target_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          active: boolean
+          amount: number
+          billing_cycle: string
+          category: string | null
+          created_at: string
+          currency: string
+          id: string
+          name: string
+          next_renewal: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          amount: number
+          billing_cycle?: string
+          category?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          name: string
+          next_renewal?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          amount?: number
+          billing_cycle?: string
+          category?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          name?: string
+          next_renewal?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
