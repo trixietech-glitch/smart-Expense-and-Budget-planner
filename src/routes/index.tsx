@@ -40,12 +40,21 @@ function Landing() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Logo />
         <nav className="hidden gap-8 text-sm font-medium text-muted-foreground md:flex">
-          <a href="#features" className="hover:text-foreground">Features</a>
-          <a href="#how" className="hover:text-foreground">How it works</a>
-          <a href="#trust" className="hover:text-foreground">Privacy</a>
+          <a href="#features" className="hover:text-foreground">
+            Features
+          </a>
+          <a href="#how" className="hover:text-foreground">
+            How it works
+          </a>
+          <a href="#trust" className="hover:text-foreground">
+            Privacy
+          </a>
         </nav>
         <div className="flex items-center gap-2">
-          <Link to="/auth" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:block">
+          <Link
+            to="/auth"
+            className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:block"
+          >
             Sign in
           </Link>
           <Link
@@ -67,11 +76,14 @@ function Landing() {
             </div>
             <h1 className="mt-5 text-5xl font-bold tracking-tight text-foreground sm:text-6xl">
               Just type it.{" "}
-              <span className="bg-gradient-hero bg-clip-text text-transparent">We'll handle the rest.</span>
+              <span className="bg-gradient-hero bg-clip-text text-transparent">
+                We'll handle the rest.
+              </span>
             </h1>
             <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-              Tell PesaHub what you spent in plain English — "<em>Spent 450 KES on lunch at the cafe</em>" — and
-              we'll categorize, store and visualise it instantly. Smart. Simple. Secure.
+              Tell PesaHub what you spent in plain English — "
+              <em>Spent 450 KES on lunch at the cafe</em>" — and we'll categorize, store and
+              visualise it instantly. Smart. Simple. Secure.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
@@ -88,9 +100,15 @@ function Landing() {
               </a>
             </div>
             <div className="mt-8 flex items-center gap-6 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-primary" /> Bank-level security</span>
-              <span className="flex items-center gap-1.5"><Zap className="h-4 w-4 text-primary" /> Instant insights</span>
-              <span className="hidden sm:flex items-center gap-1.5"><Wallet className="h-4 w-4 text-primary" /> Built for Kenya</span>
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-primary" /> Bank-level security
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Zap className="h-4 w-4 text-primary" /> Instant insights
+              </span>
+              <span className="hidden sm:flex items-center gap-1.5">
+                <Wallet className="h-4 w-4 text-primary" /> Built for Kenya
+              </span>
             </div>
           </div>
 
@@ -121,7 +139,10 @@ function Landing() {
                     { t: "Matatu to town", a: "120", c: "Transport" },
                     { t: "Naivas groceries", a: "2,300", c: "Groceries" },
                   ].map((r) => (
-                    <div key={r.t} className="flex items-center justify-between rounded-xl border bg-background/50 px-3 py-2.5">
+                    <div
+                      key={r.t}
+                      className="flex items-center justify-between rounded-xl border bg-background/50 px-3 py-2.5"
+                    >
                       <div>
                         <div className="text-sm font-medium">{r.t}</div>
                         <div className="text-[10px] text-muted-foreground">{r.c}</div>
@@ -143,20 +164,49 @@ function Landing() {
         {/* FEATURES */}
         <section id="features" className="border-y bg-card/50">
           <div className="mx-auto max-w-6xl px-6 py-20">
-            <h2 className="text-3xl font-bold tracking-tight">Everything you need to master your money</h2>
+            <h2 className="text-3xl font-bold tracking-tight">
+              Everything you need to master your money
+            </h2>
             <p className="mt-2 max-w-2xl text-muted-foreground">
               One natural sentence in. A full picture of your finances out.
             </p>
             <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { i: MessageSquareText, t: "Natural language logging", d: "Type \"Bought airtime 200\" — done. No forms, no menus." },
-                { i: Sparkles, t: "AI categorization", d: "Gemini reads your text and files it under the right category every time." },
-                { i: TrendingUp, t: "Live spending insights", d: "See where your money goes with charts that update as you type." },
-                { i: Wallet, t: "Budget tracking", d: "Set monthly goals per category and watch your progress in real time." },
-                { i: ShieldCheck, t: "Private by default", d: "Your data is encrypted and only ever visible to you." },
-                { i: Zap, t: "Built for Kenya", d: "Defaults to KES, understands matatu, mama mboga and M-Pesa lingo." },
+                {
+                  i: MessageSquareText,
+                  t: "Natural language logging",
+                  d: 'Type "Bought airtime 200" — done. No forms, no menus.',
+                },
+                {
+                  i: Sparkles,
+                  t: "AI categorization",
+                  d: "Gemini reads your text and files it under the right category every time.",
+                },
+                {
+                  i: TrendingUp,
+                  t: "Live spending insights",
+                  d: "See where your money goes with charts that update as you type.",
+                },
+                {
+                  i: Wallet,
+                  t: "Budget tracking",
+                  d: "Set monthly goals per category and watch your progress in real time.",
+                },
+                {
+                  i: ShieldCheck,
+                  t: "Private by default",
+                  d: "Your data is encrypted and only ever visible to you.",
+                },
+                {
+                  i: Zap,
+                  t: "Built for Kenya",
+                  d: "Defaults to KES, understands matatu, mama mboga and M-Pesa lingo.",
+                },
               ].map((f) => (
-                <div key={f.t} className="rounded-2xl border bg-background p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-glow">
+                <div
+                  key={f.t}
+                  className="rounded-2xl border bg-background p-6 shadow-card transition hover:-translate-y-0.5 hover:shadow-glow"
+                >
                   <div className="grid h-11 w-11 place-items-center rounded-xl bg-accent text-primary">
                     <f.i className="h-5 w-5" />
                   </div>
@@ -173,9 +223,21 @@ function Landing() {
           <h2 className="text-3xl font-bold tracking-tight">Three steps to a clearer wallet</h2>
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
             {[
-              { n: "01", t: "Type what you spent", d: "\"Spent 450 KES on lunch and soda at the cafe.\"" },
-              { n: "02", t: "AI parses & files it", d: "Amount, category and description extracted automatically." },
-              { n: "03", t: "Watch your story unfold", d: "Your dashboard and analytics update instantly." },
+              {
+                n: "01",
+                t: "Type what you spent",
+                d: '"Spent 450 KES on lunch and soda at the cafe."',
+              },
+              {
+                n: "02",
+                t: "AI parses & files it",
+                d: "Amount, category and description extracted automatically.",
+              },
+              {
+                n: "03",
+                t: "Watch your story unfold",
+                d: "Your dashboard and analytics update instantly.",
+              },
             ].map((s) => (
               <div key={s.n} className="rounded-3xl border bg-card p-8 shadow-card">
                 <div className="text-sm font-bold tracking-widest text-primary">{s.n}</div>
@@ -190,7 +252,9 @@ function Landing() {
         <section id="trust" className="mx-auto max-w-6xl px-6 pb-24">
           <div className="overflow-hidden rounded-3xl bg-gradient-hero p-10 text-primary-foreground shadow-glow sm:p-16">
             <div className="max-w-2xl">
-              <h3 className="text-3xl font-bold tracking-tight sm:text-4xl">Start your financial freedom today.</h3>
+              <h3 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Start your financial freedom today.
+              </h3>
               <p className="mt-3 text-primary-foreground/80">
                 Free to use. Takes 30 seconds to set up. Your future self will thank you.
               </p>

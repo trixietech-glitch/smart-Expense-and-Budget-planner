@@ -1,7 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
-import { Sparkles, TrendingUp, TrendingDown, AlertTriangle, CheckCircle2, Info, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Sparkles,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  RefreshCw,
+} from "lucide-react";
 import { getAiInsights } from "@/lib/insights.functions";
 
 export const Route = createFileRoute("/_authenticated/insights")({
@@ -14,10 +22,34 @@ const SEVERITY: Record<
   string,
   { icon: typeof Info; bg: string; ring: string; text: string; label: string }
 > = {
-  good: { icon: CheckCircle2, bg: "bg-emerald-50 dark:bg-emerald-950/40", ring: "ring-emerald-200 dark:ring-emerald-900", text: "text-emerald-700 dark:text-emerald-300", label: "Win" },
-  info: { icon: Info, bg: "bg-sky-50 dark:bg-sky-950/40", ring: "ring-sky-200 dark:ring-sky-900", text: "text-sky-700 dark:text-sky-300", label: "Info" },
-  warn: { icon: AlertTriangle, bg: "bg-amber-50 dark:bg-amber-950/40", ring: "ring-amber-200 dark:ring-amber-900", text: "text-amber-700 dark:text-amber-300", label: "Heads up" },
-  alert: { icon: AlertTriangle, bg: "bg-red-50 dark:bg-red-950/40", ring: "ring-red-200 dark:ring-red-900", text: "text-red-700 dark:text-red-300", label: "Action needed" },
+  good: {
+    icon: CheckCircle2,
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+    ring: "ring-emerald-200 dark:ring-emerald-900",
+    text: "text-emerald-700 dark:text-emerald-300",
+    label: "Win",
+  },
+  info: {
+    icon: Info,
+    bg: "bg-sky-50 dark:bg-sky-950/40",
+    ring: "ring-sky-200 dark:ring-sky-900",
+    text: "text-sky-700 dark:text-sky-300",
+    label: "Info",
+  },
+  warn: {
+    icon: AlertTriangle,
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+    ring: "ring-amber-200 dark:ring-amber-900",
+    text: "text-amber-700 dark:text-amber-300",
+    label: "Heads up",
+  },
+  alert: {
+    icon: AlertTriangle,
+    bg: "bg-red-50 dark:bg-red-950/40",
+    ring: "ring-red-200 dark:ring-red-900",
+    text: "text-red-700 dark:text-red-300",
+    label: "Action needed",
+  },
 };
 
 function fmt(n: number) {
@@ -30,7 +62,7 @@ function InsightsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  async function loadData() {
     setLoading(true);
     setError(null);
     try {
@@ -43,9 +75,11 @@ function InsightsPage() {
     }
   }
 
+  const load = useCallback(loadData, [fetcher]);
+
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const s = data?.summary;
   const deltaUp = (s?.expenseDeltaPct ?? 0) >= 0;
@@ -57,7 +91,9 @@ function InsightsPage() {
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <Sparkles className="h-6 w-6 text-primary" /> AI Insights
           </h1>
-          <p className="text-sm text-muted-foreground">Personalised recommendations from your last 30 days.</p>
+          <p className="text-sm text-muted-foreground">
+            Personalised recommendations from your last 30 days.
+          </p>
         </div>
         <button
           onClick={load}
@@ -87,10 +123,16 @@ function InsightsPage() {
                 : `${deltaUp ? "+" : ""}${s.expenseDeltaPct}% vs prev 30d`
             }
             hintIcon={s.expenseDeltaPct == null ? undefined : deltaUp ? TrendingUp : TrendingDown}
-            hintColor={s.expenseDeltaPct == null ? undefined : deltaUp ? "text-red-600" : "text-emerald-600"}
+            hintColor={
+              s.expenseDeltaPct == null ? undefined : deltaUp ? "text-red-600" : "text-emerald-600"
+            }
           />
           <StatCard label="Savings rate" value={`${s.savingsRate}%`} hint={fmt(s.savings30)} />
-          <StatCard label="Subscriptions / mo" value={fmt(s.monthlySubscriptions)} hint={`Debt: ${fmt(s.totalDebt)}`} />
+          <StatCard
+            label="Subscriptions / mo"
+            value={fmt(s.monthlySubscriptions)}
+            hint={`Debt: ${fmt(s.totalDebt)}`}
+          />
         </div>
       )}
 
@@ -107,15 +149,16 @@ function InsightsPage() {
           const cfg = SEVERITY[ins.severity] ?? SEVERITY.info;
           const Icon = cfg.icon;
           return (
-            <article
-              key={i}
-              className={`rounded-xl ring-1 ${cfg.ring} ${cfg.bg} p-4 shadow-sm`}
-            >
+            <article key={i} className={`rounded-xl ring-1 ${cfg.ring} ${cfg.bg} p-4 shadow-sm`}>
               <div className="mb-2 flex items-center gap-2">
-                <span className={`grid h-8 w-8 place-items-center rounded-full bg-background/80 ${cfg.text}`}>
+                <span
+                  className={`grid h-8 w-8 place-items-center rounded-full bg-background/80 ${cfg.text}`}
+                >
                   <Icon className="h-4 w-4" />
                 </span>
-                <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.text}`}>{cfg.label}</span>
+                <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.text}`}>
+                  {cfg.label}
+                </span>
                 {ins.category && (
                   <span className="ml-auto rounded-full bg-background/80 px-2 py-0.5 text-xs text-muted-foreground">
                     {ins.category}
@@ -137,7 +180,8 @@ function InsightsPage() {
           <h2 className="mb-3 text-lg font-semibold">Budget status</h2>
           <div className="space-y-2 rounded-xl border bg-card p-4">
             {s.budgetStatus.map((b) => {
-              const color = b.pct >= 100 ? "bg-red-500" : b.pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
+              const color =
+                b.pct >= 100 ? "bg-red-500" : b.pct >= 80 ? "bg-amber-500" : "bg-emerald-500";
               return (
                 <div key={b.category}>
                   <div className="mb-1 flex items-center justify-between text-sm">
@@ -147,7 +191,10 @@ function InsightsPage() {
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-muted">
-                    <div className={`h-full ${color}`} style={{ width: `${Math.min(100, b.pct)}%` }} />
+                    <div
+                      className={`h-full ${color}`}
+                      style={{ width: `${Math.min(100, b.pct)}%` }}
+                    />
                   </div>
                 </div>
               );
@@ -163,7 +210,10 @@ function InsightsPage() {
             {s.categoryDeltas.map((c) => {
               const up = c.pctChange >= 0;
               return (
-                <div key={c.category} className="flex items-center justify-between rounded-lg border bg-card p-3">
+                <div
+                  key={c.category}
+                  className="flex items-center justify-between rounded-lg border bg-card p-3"
+                >
                   <div>
                     <p className="font-medium">{c.category}</p>
                     <p className="text-xs text-muted-foreground">
@@ -205,7 +255,9 @@ function StatCard({
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-bold">{value}</p>
       {hint && (
-        <p className={`mt-1 flex items-center gap-1 text-xs ${hintColor ?? "text-muted-foreground"}`}>
+        <p
+          className={`mt-1 flex items-center gap-1 text-xs ${hintColor ?? "text-muted-foreground"}`}
+        >
           {Icon && <Icon className="h-3 w-3" />}
           {hint}
         </p>

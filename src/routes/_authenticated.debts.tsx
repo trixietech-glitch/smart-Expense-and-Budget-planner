@@ -98,7 +98,9 @@ function DebtsPage() {
   }
 
   const totalBalance = rows.reduce((s, d) => s + d.balance, 0);
-  const totalMin = rows.filter((d) => d.status === "active").reduce((s, d) => s + d.minimum_payment, 0);
+  const totalMin = rows
+    .filter((d) => d.status === "active")
+    .reduce((s, d) => s + d.minimum_payment, 0);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
@@ -180,7 +182,8 @@ function DebtsPage() {
         ) : (
           <div className="space-y-2">
             {rows.map((d) => {
-              const pct = d.principal > 0 ? Math.round(((d.principal - d.balance) / d.principal) * 100) : 0;
+              const pct =
+                d.principal > 0 ? Math.round(((d.principal - d.balance) / d.principal) * 100) : 0;
               const paid = d.status === "paid";
               return (
                 <div key={d.id} className="group rounded-2xl border bg-card p-4 shadow-card">
@@ -221,7 +224,10 @@ function DebtsPage() {
                     </div>
                   </div>
                   <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                    <div
+                      className="h-full bg-emerald-500 transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
                   <div className="mt-1 text-right text-xs text-muted-foreground">{pct}% repaid</div>
                 </div>

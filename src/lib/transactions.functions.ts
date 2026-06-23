@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { createAiGatewayProvider } from "./ai-gateway.server";
 
 export const TX_TYPES = ["expense", "income", "savings", "loan", "transfer"] as const;
 
@@ -44,9 +44,9 @@ const CATEGORY_HINTS = `Categories you may use:
 - Loan: Loan (Fuliza, KCB M-Pesa, bank loan disbursed or repaid).`;
 
 function getGateway() {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("Missing LOVABLE_API_KEY");
-  return createLovableAiGatewayProvider(key);
+  const key = process.env.AI_GATEWAY_API_KEY;
+  if (!key) throw new Error("Missing AI_GATEWAY_API_KEY environment variable");
+  return createAiGatewayProvider(key);
 }
 
 // ---------------- Deterministic M-Pesa / Airtel Money parser ----------------
@@ -62,13 +62,24 @@ type LocalParsed = {
 
 function categorize(merchant: string, fallback: string): string {
   const m = merchant.toLowerCase();
-  if (/(uber|bolt|little cab|matatu|fare|shell|total|rubis|petrol|fuel|ola energy)/.test(m)) return "Transport";
-  if (/(kplc|kenya power|nairobi water|zuku|safaricom home|faiba|jtl|telkom)/.test(m)) return "Bills & Utilities";
-  if (/(naivas|carrefour|quickmart|chandarana|tuskys|magunas|cleanshelf|game stores)/.test(m)) return "Groceries";
-  if (/(java|kfc|pizza|burger|cafe|coffee|chicken inn|galitos|big square|artcaffe|naked pizza|ocha|nyama)/.test(m)) return "Food & Drink";
+  if (/(uber|bolt|little cab|matatu|fare|shell|total|rubis|petrol|fuel|ola energy)/.test(m))
+    return "Transport";
+  if (/(kplc|kenya power|nairobi water|zuku|safaricom home|faiba|jtl|telkom)/.test(m))
+    return "Bills & Utilities";
+  if (/(naivas|carrefour|quickmart|chandarana|tuskys|magunas|cleanshelf|game stores)/.test(m))
+    return "Groceries";
+  if (
+    /(java|kfc|pizza|burger|cafe|coffee|chicken inn|galitos|big square|artcaffe|naked pizza|ocha|nyama)/.test(
+      m,
+    )
+  )
+    return "Food & Drink";
   if (/(netflix|dstv|showmax|spotify|gotv|startimes)/.test(m)) return "Entertainment";
   if (/(school|university|college|academy|fees)/.test(m)) return "School Fees";
-  if (/(hospital|clinic|pharmacy|chemist|goodlife|medplus|aga khan|nairobi hospital|mp shah)/.test(m)) return "Health";
+  if (
+    /(hospital|clinic|pharmacy|chemist|goodlife|medplus|aga khan|nairobi hospital|mp shah)/.test(m)
+  )
+    return "Health";
   if (/(airtime|bundles|data|safaricom prepay|okoa jahazi)/.test(m)) return "Airtime & Data";
   return fallback;
 }
@@ -84,36 +95,87 @@ export function localParseSms(sms: string): LocalParsed | null {
   const s = sms.trim();
   if (!s) return null;
 
-  const isMpesa = /m-?pesa/i.test(s) || /^[A-Z0-9]{8,12}\s+Confirmed\b/i.test(s) || /Fuliza/i.test(s);
+  const isMpesa =
+    /m-?pesa/i.test(s) || /^[A-Z0-9]{8,12}\s+Confirmed\b/i.test(s) || /Fuliza/i.test(s);
   if (isMpesa) {
     const amount = parseAmount(s);
     if (!amount) return null;
     const bank = "M-Pesa";
 
-    let m = s.match(/received\s+(?:Ksh|KES)\s*[\d,.]+\s+from\s+([A-Z0-9 .'&\-]+?)\s+(?:\d{7,12}|on\s)/i);
+    let m = s.match(
+      /received\s+(?:Ksh|KES)\s*[\d,.]+\s+from\s+([A-Z0-9 .'&-]+?)\s+(?:\d{7,12}|on\s)/i,
+    );
     if (m) {
       const merchant = m[1].trim();
-      return { type: "income", amount, currency: "KES", category: "Other Income", merchant, description: `Received from ${merchant}`, bank };
+      return {
+        type: "income",
+        amount,
+        currency: "KES",
+        category: "Other Income",
+        merchant,
+        description: `Received from ${merchant}`,
+        bank,
+      };
     }
-    m = s.match(/paid\s+to\s+([A-Z0-9 .'&\-]+?)(?:\s+(?:on|for|acc|account)\b|\.)/i);
+    m = s.match(/paid\s+to\s+([A-Z0-9 .'&-]+?)(?:\s+(?:on|for|acc|account)\b|\.)/i);
     if (m) {
       const merchant = m[1].trim();
-      return { type: "expense", amount, currency: "KES", category: categorize(merchant, "Shopping"), merchant, description: `Paid ${merchant}`, bank };
+      return {
+        type: "expense",
+        amount,
+        currency: "KES",
+        category: categorize(merchant, "Shopping"),
+        merchant,
+        description: `Paid ${merchant}`,
+        bank,
+      };
     }
-    m = s.match(/sent\s+to\s+([A-Z0-9 .'&\-]+?)\s+(?:\d{7,12}|on\s)/i);
+    m = s.match(/sent\s+to\s+([A-Z0-9 .'&-]+?)\s+(?:\d{7,12}|on\s)/i);
     if (m) {
       const merchant = m[1].trim();
-      return { type: "expense", amount, currency: "KES", category: "Other", merchant, description: `Sent to ${merchant}`, bank };
+      return {
+        type: "expense",
+        amount,
+        currency: "KES",
+        category: "Other",
+        merchant,
+        description: `Sent to ${merchant}`,
+        bank,
+      };
     }
     if (/withdraw/i.test(s)) {
-      const agent = s.match(/from\s+([A-Z0-9 .'&\-]+?)(?:\s+New|\.)/i);
-      return { type: "expense", amount, currency: "KES", category: "Other", merchant: agent?.[1].trim() || "M-Pesa agent", description: "Withdrawal", bank };
+      const agent = s.match(/from\s+([A-Z0-9 .'&-]+?)(?:\s+New|\.)/i);
+      return {
+        type: "expense",
+        amount,
+        currency: "KES",
+        category: "Other",
+        merchant: agent?.[1].trim() || "M-Pesa agent",
+        description: "Withdrawal",
+        bank,
+      };
     }
     if (/airtime/i.test(s)) {
-      return { type: "expense", amount, currency: "KES", category: "Airtime & Data", merchant: "Safaricom", description: "Airtime purchase", bank };
+      return {
+        type: "expense",
+        amount,
+        currency: "KES",
+        category: "Airtime & Data",
+        merchant: "Safaricom",
+        description: "Airtime purchase",
+        bank,
+      };
     }
     if (/Fuliza/i.test(s) && /(repaid|outstanding|deducted)/i.test(s)) {
-      return { type: "loan", amount, currency: "KES", category: "Loan", merchant: "Fuliza", description: "Fuliza repayment", bank };
+      return {
+        type: "loan",
+        amount,
+        currency: "KES",
+        category: "Loan",
+        merchant: "Fuliza",
+        description: "Fuliza repayment",
+        bank,
+      };
     }
     return null;
   }
@@ -124,23 +186,61 @@ export function localParseSms(sms: string): LocalParsed | null {
     if (!amount) return null;
     const bank = "Airtel Money";
 
-    let m = s.match(/(?:You have\s+)?paid\s+(?:Ksh|KES)\s*[\d,.]+\s+to\s+([A-Z0-9 .'&\-]+?)(?:\s+on|\.|,)/i);
+    let m = s.match(
+      /(?:You have\s+)?paid\s+(?:Ksh|KES)\s*[\d,.]+\s+to\s+([A-Z0-9 .'&-]+?)(?:\s+on|\.|,)/i,
+    );
     if (m) {
       const merchant = m[1].trim();
-      return { type: "expense", amount, currency: "KES", category: categorize(merchant, "Shopping"), merchant, description: `Paid ${merchant}`, bank };
+      return {
+        type: "expense",
+        amount,
+        currency: "KES",
+        category: categorize(merchant, "Shopping"),
+        merchant,
+        description: `Paid ${merchant}`,
+        bank,
+      };
     }
-    m = s.match(/(?:You have\s+)?sent\s+(?:Ksh|KES)\s*[\d,.]+\s+to\s+([A-Z0-9 .'&\-]+?)(?:\s+on|\.|,)/i);
+    m = s.match(
+      /(?:You have\s+)?sent\s+(?:Ksh|KES)\s*[\d,.]+\s+to\s+([A-Z0-9 .'&-]+?)(?:\s+on|\.|,)/i,
+    );
     if (m) {
       const merchant = m[1].trim();
-      return { type: "expense", amount, currency: "KES", category: "Other", merchant, description: `Sent to ${merchant}`, bank };
+      return {
+        type: "expense",
+        amount,
+        currency: "KES",
+        category: "Other",
+        merchant,
+        description: `Sent to ${merchant}`,
+        bank,
+      };
     }
-    m = s.match(/(?:You have\s+)?received\s+(?:Ksh|KES)\s*[\d,.]+\s+from\s+([A-Z0-9 .'&\-]+?)(?:\s+on|\.|,)/i);
+    m = s.match(
+      /(?:You have\s+)?received\s+(?:Ksh|KES)\s*[\d,.]+\s+from\s+([A-Z0-9 .'&-]+?)(?:\s+on|\.|,)/i,
+    );
     if (m) {
       const merchant = m[1].trim();
-      return { type: "income", amount, currency: "KES", category: "Other Income", merchant, description: `Received from ${merchant}`, bank };
+      return {
+        type: "income",
+        amount,
+        currency: "KES",
+        category: "Other Income",
+        merchant,
+        description: `Received from ${merchant}`,
+        bank,
+      };
     }
     if (/airtime|bundle|data/i.test(s)) {
-      return { type: "expense", amount, currency: "KES", category: "Airtime & Data", merchant: "Airtel", description: "Airtime/data", bank };
+      return {
+        type: "expense",
+        amount,
+        currency: "KES",
+        category: "Airtime & Data",
+        merchant: "Airtel",
+        description: "Airtime/data",
+        bank,
+      };
     }
     return null;
   }
@@ -149,14 +249,23 @@ export function localParseSms(sms: string): LocalParsed | null {
 }
 
 function splitSmsBatch(input: string): string[] {
-  const byBlank = input.split(/\n\s*\n+/).map((s) => s.trim()).filter(Boolean);
+  const byBlank = input
+    .split(/\n\s*\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (byBlank.length > 1) return byBlank;
-  const lines = input.split(/\n/).map((s) => s.trim()).filter(Boolean);
+  const lines = input
+    .split(/\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (lines.length <= 1) return [input.trim()].filter(Boolean);
   const chunks: string[] = [];
   let cur = "";
   for (const line of lines) {
-    if (/^[A-Z0-9]{8,12}\s+Confirmed\b/i.test(line) || /^You have\s+(paid|sent|received)/i.test(line)) {
+    if (
+      /^[A-Z0-9]{8,12}\s+Confirmed\b/i.test(line) ||
+      /^You have\s+(paid|sent|received)/i.test(line)
+    ) {
       if (cur) chunks.push(cur.trim());
       cur = line;
     } else {
@@ -179,9 +288,7 @@ const ParsedText = z.object({
 
 export const logFromText = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ text: z.string().min(2).max(500) }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ text: z.string().min(2).max(500) }).parse(input))
   .handler(async ({ data, context }) => {
     const gateway = getGateway();
     const { experimental_output } = await generateText({
@@ -189,7 +296,8 @@ export const logFromText = createServerFn({ method: "POST" })
       system:
         "You parse short natural-language money statements for a Kenyan personal-finance app (PesaHub). " +
         "Decide the transaction type (expense/income/savings/loan/transfer), extract amount in KES, pick the single best category, a short merchant if present, and a 2-6 word description. " +
-        "Default currency to KES. Never invent amounts.\n" + CATEGORY_HINTS,
+        "Default currency to KES. Never invent amounts.\n" +
+        CATEGORY_HINTS,
       prompt: `Parse: "${data.text}"`,
       experimental_output: Output.object({ schema: ParsedText }),
     });
@@ -242,9 +350,7 @@ async function parseSmsWithAi(sms: string) {
 
 export const logFromSms = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ sms: z.string().min(5).max(2000) }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ sms: z.string().min(5).max(2000) }).parse(input))
   .handler(async ({ data, context }) => {
     // Try deterministic Kenyan-wallet parser first; fall back to AI.
     const local = localParseSms(data.sms);
@@ -273,9 +379,7 @@ export const logFromSms = createServerFn({ method: "POST" })
 // ---------------- Batch SMS (paste multiple at once) ----------------
 export const logFromSmsBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z.object({ text: z.string().min(5).max(20000) }).parse(input),
-  )
+  .inputValidator((input: unknown) => z.object({ text: z.string().min(5).max(20000) }).parse(input))
   .handler(async ({ data, context }) => {
     const chunks = splitSmsBatch(data.text);
     type TxInsert = {
@@ -326,7 +430,6 @@ export const logFromSmsBatch = createServerFn({ method: "POST" })
     return { inserted, failed: failures.length, total: chunks.length, failures };
   });
 
-
 // ---------------- Receipt scanner ----------------
 const ParsedReceipt = z.object({
   amount: z.number().positive(),
@@ -371,9 +474,10 @@ export const logFromReceipt = createServerFn({ method: "POST" })
     });
     const p = experimental_output;
 
-    const spent_at = p.spent_at && !isNaN(Date.parse(p.spent_at))
-      ? new Date(p.spent_at).toISOString()
-      : new Date().toISOString();
+    const spent_at =
+      p.spent_at && !isNaN(Date.parse(p.spent_at))
+        ? new Date(p.spent_at).toISOString()
+        : new Date().toISOString();
 
     const { data: row, error } = await context.supabase
       .from("transactions")
@@ -425,9 +529,10 @@ export const createManual = createServerFn({ method: "POST" })
         description: data.description || data.category,
         raw_text: `${data.type} · ${data.category}`,
         source: "manual",
-        spent_at: data.spent_at && !isNaN(Date.parse(data.spent_at))
-          ? new Date(data.spent_at).toISOString()
-          : new Date().toISOString(),
+        spent_at:
+          data.spent_at && !isNaN(Date.parse(data.spent_at))
+            ? new Date(data.spent_at).toISOString()
+            : new Date().toISOString(),
       })
       .select()
       .single();
@@ -440,10 +545,7 @@ export const deleteTransaction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("transactions")
-      .delete()
-      .eq("id", data.id);
+    const { error } = await context.supabase.from("transactions").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

@@ -192,7 +192,10 @@ function GoalsPage() {
                   <div className="mt-2 flex items-center justify-between text-sm">
                     <div>
                       <span className="font-bold">KES {g.current_amount.toLocaleString()}</span>
-                      <span className="text-muted-foreground"> / {g.target_amount.toLocaleString()}</span>
+                      <span className="text-muted-foreground">
+                        {" "}
+                        / {g.target_amount.toLocaleString()}
+                      </span>
                     </div>
                     <button
                       onClick={() => addContribution(g)}

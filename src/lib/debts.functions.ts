@@ -20,7 +20,9 @@ export const listDebts = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<Debt[]> => {
     const { data, error } = await context.supabase
       .from("debts")
-      .select("id,name,lender,principal,balance,interest_rate,minimum_payment,due_day,currency,status")
+      .select(
+        "id,name,lender,principal,balance,interest_rate,minimum_payment,due_day,currency,status",
+      )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return (data ?? []).map((d) => ({

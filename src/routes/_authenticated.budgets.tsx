@@ -184,7 +184,9 @@ function BudgetRow({ b, onDelete }: { b: BudgetStatus; onDelete: () => void }) {
           <div className="text-right text-sm">
             <div className="font-bold">
               KES {b.spent.toLocaleString()}{" "}
-              <span className="text-muted-foreground font-normal">/ {b.monthly_limit.toLocaleString()}</span>
+              <span className="text-muted-foreground font-normal">
+                / {b.monthly_limit.toLocaleString()}
+              </span>
             </div>
             <div className={`text-xs ${statusColor}`}>
               {b.status === "over"

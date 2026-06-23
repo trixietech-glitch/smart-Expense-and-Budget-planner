@@ -102,7 +102,11 @@ function SubsPage() {
     () =>
       rows
         .filter((s) => s.active)
-        .reduce((sum, s) => sum + s.amount / CYCLE_TO_MONTHS[s.billing_cycle as keyof typeof CYCLE_TO_MONTHS], 0),
+        .reduce(
+          (sum, s) =>
+            sum + s.amount / CYCLE_TO_MONTHS[s.billing_cycle as keyof typeof CYCLE_TO_MONTHS],
+          0,
+        ),
     [rows],
   );
 

@@ -2,12 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { createAiGatewayProvider } from "./ai-gateway.server";
 
 function getGateway() {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) throw new Error("Missing LOVABLE_API_KEY");
-  return createLovableAiGatewayProvider(key);
+  const key = process.env.AI_GATEWAY_API_KEY;
+  if (!key) throw new Error("Missing AI_GATEWAY_API_KEY environment variable");
+  return createAiGatewayProvider(key);
 }
 
 const InsightSchema = z.object({
@@ -36,16 +36,21 @@ export const getAiInsights = createServerFn({ method: "GET" })
     const start60 = new Date(now);
     start60.setDate(start60.getDate() - 60);
 
-    const [{ data: tx }, { data: budgets }, { data: subs }, { data: debts }, { data: goals }] = await Promise.all([
-      context.supabase
-        .from("transactions")
-        .select("type,amount,category,merchant,spent_at")
-        .gte("spent_at", start60.toISOString()),
-      context.supabase.from("budgets").select("category,monthly_limit"),
-      context.supabase.from("subscriptions").select("name,amount,billing_cycle,active,next_renewal"),
-      context.supabase.from("debts").select("name,balance,minimum_payment,interest_rate,status"),
-      context.supabase.from("savings_goals").select("name,target_amount,current_amount,target_date"),
-    ]);
+    const [{ data: tx }, { data: budgets }, { data: subs }, { data: debts }, { data: goals }] =
+      await Promise.all([
+        context.supabase
+          .from("transactions")
+          .select("type,amount,category,merchant,spent_at")
+          .gte("spent_at", start60.toISOString()),
+        context.supabase.from("budgets").select("category,monthly_limit"),
+        context.supabase
+          .from("subscriptions")
+          .select("name,amount,billing_cycle,active,next_renewal"),
+        context.supabase.from("debts").select("name,balance,minimum_payment,interest_rate,status"),
+        context.supabase
+          .from("savings_goals")
+          .select("name,target_amount,current_amount,target_date"),
+      ]);
 
     const rows = (tx ?? []) as Array<{
       type: string;
@@ -84,7 +89,12 @@ export const getAiInsights = createServerFn({ method: "GET" })
       .map(([cat, amt]) => {
         const before = prev.get(cat) ?? 0;
         const pct = before > 0 ? ((amt - before) / before) * 100 : amt > 0 ? 100 : 0;
-        return { category: cat, current: Math.round(amt), previous: Math.round(before), pctChange: Math.round(pct) };
+        return {
+          category: cat,
+          current: Math.round(amt),
+          previous: Math.round(before),
+          pctChange: Math.round(pct),
+        };
       })
       .sort((a, b) => Math.abs(b.pctChange) - Math.abs(a.pctChange))
       .slice(0, 5);
@@ -104,7 +114,8 @@ export const getAiInsights = createServerFn({ method: "GET" })
       .filter((s) => s.active)
       .reduce((sum, s) => {
         const a = Number(s.amount);
-        const factor = s.billing_cycle === "yearly" ? 1 / 12 : s.billing_cycle === "weekly" ? 4.33 : 1;
+        const factor =
+          s.billing_cycle === "yearly" ? 1 / 12 : s.billing_cycle === "weekly" ? 4.33 : 1;
         return sum + a * factor;
       }, 0);
 
@@ -114,7 +125,10 @@ export const getAiInsights = createServerFn({ method: "GET" })
 
     const goalsSummary = (goals ?? []).map((g) => ({
       name: g.name,
-      pct: g.target_amount > 0 ? Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100) : 0,
+      pct:
+        g.target_amount > 0
+          ? Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100)
+          : 0,
       remaining: Math.round(Number(g.target_amount) - Number(g.current_amount)),
       target_date: g.target_date,
     }));
@@ -167,7 +181,9 @@ export const getAiInsights = createServerFn({ method: "GET" })
       if (over.length) {
         fallback.push({
           title: `${over.length} budget${over.length > 1 ? "s" : ""} blown`,
-          body: over.map((o) => `${o.category} ${o.pct}%`).join(", ") + ". Review and tighten next month.",
+          body:
+            over.map((o) => `${o.category} ${o.pct}%`).join(", ") +
+            ". Review and tighten next month.",
           severity: "alert",
           category: over[0].category,
           action: "Open Budgets to adjust limits.",
@@ -183,7 +199,10 @@ export const getAiInsights = createServerFn({ method: "GET" })
           action: "",
         });
       }
-      if (summary.monthlySubscriptions > 0 && summary.monthlySubscriptions > summary.income30 * 0.1) {
+      if (
+        summary.monthlySubscriptions > 0 &&
+        summary.monthlySubscriptions > summary.income30 * 0.1
+      ) {
         fallback.push({
           title: "Subscriptions are eating your income",
           body: `KES ${summary.monthlySubscriptions.toLocaleString()}/month in subscriptions — over 10% of income. Cancel ones you don't use.`,

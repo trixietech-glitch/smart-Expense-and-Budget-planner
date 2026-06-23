@@ -1,7 +1,16 @@
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, BarChart3, LogOut, Wallet, Target, Landmark, Repeat, Sparkles } from "lucide-react";
+import {
+  LayoutDashboard,
+  BarChart3,
+  LogOut,
+  Wallet,
+  Target,
+  Landmark,
+  Repeat,
+  Sparkles,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthGate,
@@ -41,7 +50,9 @@ function AuthGate() {
       <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <Link to="/dashboard" className="flex items-center gap-2 font-bold">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-hero text-primary-foreground">P</span>
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-hero text-primary-foreground">
+              P
+            </span>
             PesaHub
           </Link>
           <nav className="flex items-center gap-1 overflow-x-auto rounded-full border bg-card p-1 text-sm">
@@ -79,7 +90,14 @@ function NavTab({
   icon: Icon,
   label,
 }: {
-  to: "/dashboard" | "/analytics" | "/budgets" | "/goals" | "/debts" | "/subscriptions" | "/insights";
+  to:
+    | "/dashboard"
+    | "/analytics"
+    | "/budgets"
+    | "/goals"
+    | "/debts"
+    | "/subscriptions"
+    | "/insights";
   current: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
@@ -89,7 +107,9 @@ function NavTab({
     <Link
       to={to}
       className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${
-        active ? "bg-gradient-hero text-primary-foreground shadow-card" : "text-muted-foreground hover:text-foreground"
+        active
+          ? "bg-gradient-hero text-primary-foreground shadow-card"
+          : "text-muted-foreground hover:text-foreground"
       }`}
     >
       <Icon className="h-3.5 w-3.5" />

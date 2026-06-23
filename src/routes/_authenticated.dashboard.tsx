@@ -51,7 +51,10 @@ type Tx = {
 
 type Tab = "ai" | "sms" | "receipt" | "manual";
 
-const TYPE_META: Record<Tx["type"], { label: string; color: string; sign: "+" | "-" | ""; icon: typeof ArrowDownRight }> = {
+const TYPE_META: Record<
+  Tx["type"],
+  { label: string; color: string; sign: "+" | "-" | ""; icon: typeof ArrowDownRight }
+> = {
   expense: { label: "Expense", color: "oklch(0.65 0.18 30)", sign: "-", icon: ArrowDownRight },
   income: { label: "Income", color: "oklch(0.58 0.16 152)", sign: "+", icon: ArrowUpRight },
   savings: { label: "Savings", color: "oklch(0.6 0.15 260)", sign: "", icon: PiggyBank },
@@ -122,10 +125,16 @@ function Dashboard() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const thisMonth = rows.filter((e) => new Date(e.spent_at) >= monthStart);
-  const monthExpense = thisMonth.filter((r) => r.type === "expense").reduce((s, r) => s + Number(r.amount), 0);
-  const monthIncome = thisMonth.filter((r) => r.type === "income").reduce((s, r) => s + Number(r.amount), 0);
+  const monthExpense = thisMonth
+    .filter((r) => r.type === "expense")
+    .reduce((s, r) => s + Number(r.amount), 0);
+  const monthIncome = thisMonth
+    .filter((r) => r.type === "income")
+    .reduce((s, r) => s + Number(r.amount), 0);
   const todayExpense = rows
-    .filter((e) => e.type === "expense" && new Date(e.spent_at).toDateString() === now.toDateString())
+    .filter(
+      (e) => e.type === "expense" && new Date(e.spent_at).toDateString() === now.toDateString(),
+    )
     .reduce((s, r) => s + Number(r.amount), 0);
 
   return (
@@ -147,10 +156,30 @@ function Dashboard() {
       {/* Logger */}
       <div className="mt-8 rounded-3xl border bg-card p-6 shadow-card">
         <div className="flex flex-wrap items-center gap-2 border-b pb-3 text-sm">
-          <TabBtn active={tab === "ai"} onClick={() => setTab("ai")} icon={Sparkles} label="AI Text" />
-          <TabBtn active={tab === "sms"} onClick={() => setTab("sms")} icon={MessageSquareText} label="Paste SMS" />
-          <TabBtn active={tab === "receipt"} onClick={() => setTab("receipt")} icon={Camera} label="Scan Receipt" />
-          <TabBtn active={tab === "manual"} onClick={() => setTab("manual")} icon={Pencil} label="Manual" />
+          <TabBtn
+            active={tab === "ai"}
+            onClick={() => setTab("ai")}
+            icon={Sparkles}
+            label="AI Text"
+          />
+          <TabBtn
+            active={tab === "sms"}
+            onClick={() => setTab("sms")}
+            icon={MessageSquareText}
+            label="Paste SMS"
+          />
+          <TabBtn
+            active={tab === "receipt"}
+            onClick={() => setTab("receipt")}
+            icon={Camera}
+            label="Scan Receipt"
+          />
+          <TabBtn
+            active={tab === "manual"}
+            onClick={() => setTab("manual")}
+            icon={Pencil}
+            label="Manual"
+          />
         </div>
         <div className="mt-5">
           {tab === "ai" && <AiTextPanel logFn={logTextFn} onDone={afterLog} />}
@@ -188,10 +217,15 @@ function Dashboard() {
                       <Icon className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="text-sm font-semibold">{e.description || e.merchant || e.raw_text || meta.label}</div>
+                      <div className="text-sm font-semibold">
+                        {e.description || e.merchant || e.raw_text || meta.label}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {meta.label} · {e.category} · {srcLabel(e.source)} ·{" "}
-                        {new Date(e.spent_at).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })}
+                        {new Date(e.spent_at).toLocaleString("en-KE", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
                       </div>
                     </div>
                   </div>
@@ -295,7 +329,9 @@ function SmsPanel({
   onDone,
 }: {
   logFn: (a: { data: { sms: string } }) => Promise<unknown>;
-  batchFn: (a: { data: { text: string } }) => Promise<{ inserted: number; failed: number; total: number }>;
+  batchFn: (a: {
+    data: { text: string };
+  }) => Promise<{ inserted: number; failed: number; total: number }>;
   onDone: () => void;
 }) {
   const [sms, setSms] = useState("");
@@ -311,7 +347,9 @@ function SmsPanel({
     if (!t) return 0;
     const byBlank = t.split(/\n\s*\n+/).filter((x) => x.trim()).length;
     if (byBlank > 1) return byBlank;
-    const matches = t.match(/(^|\n)\s*(?:[A-Z0-9]{8,12}\s+Confirmed\b|You have\s+(?:paid|sent|received))/gi);
+    const matches = t.match(
+      /(^|\n)\s*(?:[A-Z0-9]{8,12}\s+Confirmed\b|You have\s+(?:paid|sent|received))/gi,
+    );
     return matches ? Math.max(matches.length, 1) : 1;
   })();
   const isBatch = detectedCount > 1;
@@ -326,7 +364,9 @@ function SmsPanel({
         const res = await batchFn({ data: { text } });
         setSms("");
         if (res.failed > 0) {
-          toast.success(`Logged ${res.inserted} of ${res.total} (${res.failed} couldn't be parsed)`);
+          toast.success(
+            `Logged ${res.inserted} of ${res.total} (${res.failed} couldn't be parsed)`,
+          );
         } else {
           toast.success(`Logged ${res.inserted} transactions`);
         }
@@ -369,7 +409,13 @@ function SmsPanel({
             className="flex items-center gap-2 rounded-xl bg-gradient-hero px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-60"
           >
             <Send className="h-4 w-4" />
-            {sending ? (isBatch ? "Parsing all…" : "Parsing…") : isBatch ? `Parse & log ${detectedCount}` : "Parse & log"}
+            {sending
+              ? isBatch
+                ? "Parsing all…"
+                : "Parsing…"
+              : isBatch
+                ? `Parse & log ${detectedCount}`
+                : "Parse & log"}
           </button>
         </div>
       </form>
@@ -467,7 +513,11 @@ function ReceiptPanel({
           </div>
         </div>
         {preview ? (
-          <img src={preview} alt="receipt preview" className="h-40 w-full rounded-xl border object-contain bg-background" />
+          <img
+            src={preview}
+            alt="receipt preview"
+            className="h-40 w-full rounded-xl border object-contain bg-background"
+          />
         ) : (
           <div className="grid h-40 place-items-center rounded-xl border bg-background/40 text-xs text-muted-foreground">
             Preview
@@ -558,7 +608,9 @@ function ManualPanel({
             key={t.id}
             onClick={() => setType(t.id)}
             className={`rounded-full border px-4 py-1.5 text-xs font-medium ${
-              type === t.id ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-accent"
+              type === t.id
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background hover:bg-accent"
             }`}
           >
             {t.label}
@@ -647,7 +699,9 @@ function TabBtn({
       type="button"
       onClick={onClick}
       className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium transition ${
-        active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-foreground"
       }`}
     >
       <Icon className="h-3.5 w-3.5" />
@@ -656,7 +710,15 @@ function TabBtn({
   );
 }
 
-function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <label className={`block ${className}`}>
       <div className="mb-1 text-xs font-medium text-muted-foreground">{label}</div>
@@ -683,7 +745,11 @@ function StatCard({
       }`}
     >
       <div className="flex items-center justify-between">
-        <div className={`text-xs ${highlight ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{label}</div>
+        <div
+          className={`text-xs ${highlight ? "text-primary-foreground/80" : "text-muted-foreground"}`}
+        >
+          {label}
+        </div>
         <Icon className={`h-4 w-4 ${highlight ? "text-primary-foreground/80" : "text-primary"}`} />
       </div>
       <div className="mt-3 text-2xl font-bold tracking-tight">{value}</div>

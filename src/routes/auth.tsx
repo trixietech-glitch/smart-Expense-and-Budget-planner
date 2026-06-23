@@ -7,7 +7,10 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in to PesaHub" },
-      { name: "description", content: "Sign in or create your PesaHub account to start tracking expenses with AI." },
+      {
+        name: "description",
+        content: "Sign in or create your PesaHub account to start tracking expenses with AI.",
+      },
     ],
   }),
   component: AuthPage,
@@ -60,7 +63,9 @@ function AuthPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="relative hidden flex-col justify-between bg-gradient-hero p-12 text-primary-foreground lg:flex">
         <Link to="/" className="flex items-center gap-2 text-lg font-bold">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary-foreground/15 backdrop-blur">P</span>
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary-foreground/15 backdrop-blur">
+            P
+          </span>
           PesaHub
         </Link>
         <div>
@@ -74,12 +79,16 @@ function AuthPage() {
 
       <div className="flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">← Back</Link>
+          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+            ← Back
+          </Link>
           <h1 className="mt-6 text-3xl font-bold tracking-tight">
             {mode === "signin" ? "Welcome back" : "Create your account"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "signin" ? "Sign in to keep tracking your spending." : "Start tracking in under a minute."}
+            {mode === "signin"
+              ? "Sign in to keep tracking your spending."
+              : "Start tracking in under a minute."}
           </p>
 
           <form onSubmit={submit} className="mt-8 space-y-4">
@@ -129,14 +138,22 @@ function AuthPage() {
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "signin" ? (
-              <>New here?{" "}
-                <button onClick={() => setMode("signup")} className="font-medium text-primary hover:underline">
+              <>
+                New here?{" "}
+                <button
+                  onClick={() => setMode("signup")}
+                  className="font-medium text-primary hover:underline"
+                >
                   Create an account
                 </button>
               </>
             ) : (
-              <>Already have an account?{" "}
-                <button onClick={() => setMode("signin")} className="font-medium text-primary hover:underline">
+              <>
+                Already have an account?{" "}
+                <button
+                  onClick={() => setMode("signin")}
+                  className="font-medium text-primary hover:underline"
+                >
                   Sign in
                 </button>
               </>

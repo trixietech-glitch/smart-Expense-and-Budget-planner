@@ -94,7 +94,14 @@ function Analytics() {
     const m = new Map<string, number>();
     rows.forEach((r) => m.set(r.source, (m.get(r.source) ?? 0) + 1));
     return Array.from(m.entries()).map(([name, value]) => ({
-      name: name === "ai_text" ? "AI" : name === "sms" ? "SMS" : name === "receipt" ? "Receipt" : "Manual",
+      name:
+        name === "ai_text"
+          ? "AI"
+          : name === "sms"
+            ? "SMS"
+            : name === "receipt"
+              ? "Receipt"
+              : "Manual",
       value,
     }));
   }, [rows]);
@@ -122,7 +129,13 @@ function Analytics() {
               <div className="h-[200px]">
                 <ResponsiveContainer>
                   <PieChart>
-                    <Pie data={byCategory} dataKey="value" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                    <Pie
+                      data={byCategory}
+                      dataKey="value"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                    >
                       {byCategory.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
@@ -137,7 +150,10 @@ function Analytics() {
                   return (
                     <li key={c.name} className="flex items-center justify-between gap-3">
                       <span className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                        />
                         {c.name}
                       </span>
                       <span className="text-muted-foreground">
@@ -180,7 +196,13 @@ function Analytics() {
                 <BarChart data={bySource} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.015 150)" />
                   <XAxis type="number" stroke="oklch(0.5 0.02 160)" fontSize={11} />
-                  <YAxis type="category" dataKey="name" stroke="oklch(0.5 0.02 160)" fontSize={11} width={80} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    stroke="oklch(0.5 0.02 160)"
+                    fontSize={11}
+                    width={80}
+                  />
                   <Tooltip />
                   <Bar dataKey="value" fill="oklch(0.6 0.15 260)" radius={[0, 6, 6, 0]} />
                 </BarChart>
@@ -216,7 +238,9 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
     <div
       className={`rounded-3xl border p-5 shadow-card ${accent ? "bg-gradient-hero text-primary-foreground" : "bg-card"}`}
     >
-      <div className={`text-xs ${accent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{label}</div>
+      <div className={`text-xs ${accent ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+        {label}
+      </div>
       <div className="mt-2 text-2xl font-bold">{value}</div>
     </div>
   );

@@ -111,8 +111,12 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html { font-family: var(--font-display); }
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    font-family: var(--font-display);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -120,7 +124,15 @@
   }
 }
 
-@utility bg-gradient-hero { background-image: var(--gradient-hero); }
-@utility bg-gradient-soft { background-image: var(--gradient-soft); }
-@utility shadow-card { box-shadow: var(--shadow-card); }
-@utility shadow-glow { box-shadow: var(--shadow-glow); }
+@utility bg-gradient-hero {
+  background-image: var(--gradient-hero);
+}
+@utility bg-gradient-soft {
+  background-image: var(--gradient-soft);
+}
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+@utility shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
